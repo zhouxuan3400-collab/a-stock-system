@@ -1,25 +1,49 @@
 # -*- coding: utf-8 -*-
 import os
 import json
+import time
 import requests
 from datetime import datetime
+
+
+def safe_request(url, params=None, max_retries=3):
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Referer": "https://quote.eastmoney.com/",
+        "Accept": "application/json,text/plain,*/*",
+    }
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=15)
+            response.raise_for_status()
+            return response.json()
+
+        except Exception as e:
+            print(f"请求失败，第 {attempt + 1} 次重试: {e}")
+
+            if attempt < max_retries - 1:
+                time.sleep(2)
+            else:
+                print("所有重试失败")
+                return None
 
 
 def fetch_market_summary():
     try:
         url = "https://push2ex.eastmoney.com/getTopicZDFenBu"
-        response = requests.get(url, timeout=5)
-        data = response.json()
-
+        data = safe_request(url)
+        if not data:
+            return {"上涨家数": "未知", "下跌家数": "未知"}
         up_count = data.get("data", {}).get("up", 0)
         down_count = data.get("data", {}).get("down", 0)
-
-        return {
-            "上涨家数": up_count,
-            "下跌家数": down_count,
-        }
+        return {"上涨家数": up_count, "下跌家数": down_count}
     except:
-        return {"上涨家数": 0, "下跌家数": 0}
+        return {"上涨家数": "未知", "下跌家数": "未知"}
 
 
 def fetch_limit_count():
@@ -37,13 +61,12 @@ def fetch_limit_count():
             "fs": "m:0+t:80",
             "fields": "f3",
         }
-        response = requests.get(url, params=params, timeout=5)
-        data = response.json()
+        data = safe_request(url, params=params)
+        if not data:
+            return {"涨停数": 0, "跌停数": 0}
         stocks = data.get("data", {}).get("diff", [])
-
-        up_limit = sum(1 for s in stocks if s.get("f3", 0) >= 9.9)
-        down_limit = sum(1 for s in stocks if s.get("f3", 0) <= -9.9)
-
+        up_limit = sum(1 for s in stocks if float(s.get("f3", 0) or 0) >= 9.9)
+        down_limit = sum(1 for s in stocks if float(s.get("f3", 0) or 0) <= -9.9)
         return {"涨停数": up_limit, "跌停数": down_limit}
     except:
         return {"涨停数": 0, "跌停数": 0}
@@ -62,10 +85,10 @@ def fetch_market_amount():
             "fields": "f2",
             "fs": "m:0+t:80+f:!2",
         }
-        response = requests.get(url, params=params, timeout=5)
-        data = response.json()
+        data = safe_request(url, params=params)
+        if not data:
+            return {"市场成交额": "未知"}
         amount = data.get("data", {}).get("diff", [{}])[0].get("f2", 0)
-
         amount_yi = amount / 100000000 if amount else 0
         return {"市场成交额": f"{amount_yi:.0f}亿"}
     except:
@@ -76,12 +99,11 @@ def fetch_north_money():
     try:
         url = "https://push2ex.eastmoney.com/getTopicZTPool"
         params = {"ut": "b2884a393a59ad64002292a3e90d46a5", "dession": "ALL"}
-        response = requests.get(url, params=params, timeout=5)
-        data = response.json()
-
+        data = safe_request(url, params=params)
+        if not data:
+            return {"北向资金净流入": "暂无"}
         north = data.get("data", {}).get("north", {})
         north_in = north.get("amount", 0)
-
         north_yi = north_in / 100000000 if north_in else 0
         return {"北向资金净流入": f"{north_yi:.1f}亿"}
     except:
@@ -90,8 +112,11 @@ def fetch_north_money():
 
 def get_market_judge_data():
     summary = fetch_market_summary()
+    time.sleep(1)
     limit_data = fetch_limit_count()
+    time.sleep(1)
     amount_data = fetch_market_amount()
+    time.sleep(1)
     north_data = fetch_north_money()
 
     result = {}
@@ -108,10 +133,17 @@ def analyze_risk_sources():
 
     risk_sources = []
 
-    up_count = risk_data.get("上涨家数", 0)
-    down_count = risk_data.get("下跌家数", 0)
+    try:
+        up_count = int(risk_data.get("上涨家数", 0) or 0)
+    except:
+        up_count = 0
+    try:
+        down_count = int(risk_data.get("下跌家数", 0) or 0)
+    except:
+        down_count = 0
+
     total = up_count + down_count
-    if total > 0:
+    if total > 0 and up_count > 0:
         up_ratio = up_count / total
 
         if up_ratio < 0.3:
@@ -139,8 +171,14 @@ def analyze_risk_sources():
                 }
             )
 
-    limit_up = risk_data.get("涨停数", 0)
-    limit_down = risk_data.get("跌停数", 0)
+    try:
+        limit_up = int(risk_data.get("涨停数", 0) or 0)
+    except:
+        limit_up = 0
+    try:
+        limit_down = int(risk_data.get("跌停数", 0) or 0)
+    except:
+        limit_down = 0
 
     if limit_up > 0 and limit_down > 5:
         risk_sources.append(
@@ -164,32 +202,37 @@ def analyze_risk_sources():
         )
 
     amount_str = risk_data.get("市场成交额", "未知")
-    if amount_str != "未知":
-        amount_val = float(amount_str.replace("亿", ""))
-        if amount_val < 5000:
-            risk_sources.append(
-                {
-                    "项目": "成交额变化",
-                    "状态": "警惕",
-                    "说明": f"成交额不足{amount_val:.0f}亿，交投清淡",
-                }
-            )
+    try:
+        if amount_str and amount_str != "未知":
+            amount_val = float(amount_str.replace("亿", ""))
+            if amount_val < 5000:
+                risk_sources.append(
+                    {
+                        "项目": "成交额变化",
+                        "状态": "警惕",
+                        "说明": f"成交额不足{amount_val:.0f}亿，交投清淡",
+                    }
+                )
+            else:
+                risk_sources.append(
+                    {
+                        "项目": "成交额变化",
+                        "状态": "安全",
+                        "说明": f"成交额{amount_val:.0f}亿，活跃度良好",
+                    }
+                )
         else:
             risk_sources.append(
-                {
-                    "项目": "成交额变化",
-                    "状态": "安全",
-                    "说明": f"成交额{amount_val:.0f}亿，活跃度良好",
-                }
+                {"项目": "成交额变化", "状态": "未知", "说明": "数据获取失败"}
             )
-    else:
+    except:
         risk_sources.append(
-            {"项目": "成交额变化", "状态": "未知", "说明": "数据获取失败"}
+            {"项目": "成交额变化", "状态": "未知", "说明": "数据解析失败"}
         )
 
     north_str = risk_data.get("北向资金净流入", "暂无")
-    if north_str != "暂无":
-        try:
+    try:
+        if north_str and north_str != "暂无":
             north_val = float(north_str.replace("亿", ""))
             if north_val < 0:
                 risk_sources.append(
@@ -215,12 +258,14 @@ def analyze_risk_sources():
                         "说明": f"净流入{north_val:.1f}亿，外资看好",
                     }
                 )
-        except:
+        else:
             risk_sources.append(
-                {"项目": "北向资金", "状态": "未知", "说明": "数据解析失败"}
+                {"项目": "北向资金", "状态": "未知", "说明": "暂无数据"}
             )
-    else:
-        risk_sources.append({"项目": "北向资金", "状态": "未知", "说明": "暂无数据"})
+    except:
+        risk_sources.append(
+            {"项目": "北向资金", "状态": "未知", "说明": "数据解析失败"}
+        )
 
     if limit_up >= 30:
         risk_sources.append(
@@ -266,8 +311,10 @@ def run_analysis_core():
     }
 
     try:
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
+        data = safe_request(url, params=params)
+        if data is None or not data.get("data"):
+            raise Exception("No data returned from API")
+
         sectors = data["data"]["diff"]
         sectors_sorted = sorted(sectors, key=lambda x: x.get("f3", 0), reverse=True)
         top_10 = sectors_sorted[:10]
@@ -275,8 +322,15 @@ def run_analysis_core():
 
         main_sectors_detail = []
         for i, sector in enumerate(top_10[:5]):
-            change = sector.get("f3", 0)
-            amount = sector.get("f62", 0)
+            try:
+                change = float(sector.get("f3", 0) or 0)
+            except:
+                change = 0
+
+            try:
+                amount = float(sector.get("f62", 0) or 0)
+            except:
+                amount = 0
             amount_yi = amount / 100000000 if amount else 0
 
             strength = 100 - i * 15

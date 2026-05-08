@@ -1,8 +1,36 @@
 # -*- coding: utf-8 -*-
 import os
 import csv
+import time
 import requests
 from datetime import datetime
+
+
+def safe_request(url, params=None, max_retries=3):
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Referer": "https://quote.eastmoney.com/",
+        "Accept": "application/json,text/plain,*/*",
+    }
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=15)
+            response.raise_for_status()
+            return response.json()
+
+        except Exception as e:
+            print(f"请求失败，第 {attempt + 1} 次重试: {e}")
+
+            if attempt < max_retries - 1:
+                time.sleep(2)
+            else:
+                print("所有重试失败")
+                return None
 
 
 def fetch_sector_data():
@@ -19,24 +47,27 @@ def fetch_sector_data():
         "fs": "m:90+t:2",
         "fields": "f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87,f204,f205,f124,f1,f13",
     }
-
-    response = requests.get(url, params=params)
-    data = response.json()
-    sectors = data["data"]["diff"]
-    sectors_sorted = sorted(sectors, key=lambda x: x.get("f3", 0), reverse=True)
-    top_10 = sectors_sorted[:10]
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    os.makedirs("data/raw", exist_ok=True)
-    with open("data/raw/sector_rank.csv", "w", encoding="utf-8") as f:
-        f.write("日期,排名,板块名称,涨跌幅,成交额\n")
-        for i, sector in enumerate(top_10, 1):
-            name = sector.get("f14") or "未知板块"
-            change_pct = sector.get("f3") if sector.get("f3") is not None else 0
-            amount = sector.get("f62") if sector.get("f62") is not None else 0
-            f.write(f'{today},{i},"{name}",{change_pct},{amount}\n')
-
-    return top_10, today
+    try:
+        data = safe_request(url, params=params)
+        if not data:
+            print("数据获取失败")
+            return [], datetime.now().strftime("%Y-%m-%d")
+        sectors = data["data"]["diff"]
+        sectors_sorted = sorted(sectors, key=lambda x: x.get("f3", 0), reverse=True)
+        top_10 = sectors_sorted[:10]
+        today = datetime.now().strftime("%Y-%m-%d")
+        os.makedirs("data/raw", exist_ok=True)
+        with open("data/raw/sector_rank.csv", "w", encoding="utf-8") as f:
+            f.write("日期,排名,板块名称,涨跌幅,成交额\n")
+            for i, sector in enumerate(top_10, 1):
+                name = sector.get("f14") or "未知板块"
+                change_pct = sector.get("f3") if sector.get("f3") is not None else 0
+                amount = sector.get("f62") if sector.get("f62") is not None else 0
+                f.write(f'{today},{i},"{name}",{change_pct},{amount}\n')
+        return top_10, today
+    except Exception as e:
+        print(f"数据获取失败: {e}")
+        return [], datetime.now().strftime("%Y-%m-%d")
 
 
 def load_today_sectors(top_10):
