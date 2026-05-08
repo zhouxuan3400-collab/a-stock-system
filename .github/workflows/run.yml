@@ -1,6 +1,7 @@
 name: stock-system-auto-run
 
 on:
+  push:
   schedule:
     - cron: '5 7 * * *'
   workflow_dispatch:
