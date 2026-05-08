@@ -4,6 +4,58 @@ import os
 from datetime import datetime
 import requests
 import csv
+import json
+import subprocess
+import threading
+import time
+
+CACHE_FILE = "data/latest_result.json"
+TASK_STATUS_FILE = "data/processed/task_status.json"
+
+
+def get_task_status():
+    if os.path.exists(TASK_STATUS_FILE):
+        with open(TASK_STATUS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"status": "idle", "message": ""}
+
+
+def set_task_status(status, message=""):
+    os.makedirs("data/processed", exist_ok=True)
+    with open(TASK_STATUS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"status": status, "message": message}, f, ensure_ascii=False)
+
+
+def save_market_data(data):
+    os.makedirs("data", exist_ok=True)
+    with open(CACHE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
+def load_market_data():
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+
+def run_analysis_background():
+    try:
+        set_task_status("running", "分析中...")
+        data = get_market_data()
+        save_market_data(data)
+        set_task_status("completed", "分析完成")
+    except Exception as e:
+        set_task_status("error", str(e))
+
+
+def trigger_background_analysis():
+    task = get_task_status()
+    if task["status"] == "running":
+        return False
+    threading.Thread(target=run_analysis_background, daemon=True).start()
+    return True
+
 
 st.set_page_config(layout="wide")
 
@@ -246,32 +298,44 @@ with col_btn:
     run_btn = st.button("🔄 一键运行分析", type="primary")
 
 if run_btn:
-    with st.spinner("分析中..."):
-        data = get_market_data()
+    if trigger_background_analysis():
+        st.success("✅ 分析已启动，请稍后刷新查看结果")
+    else:
+        st.info("⏳ 分析正在进行中，请稍候...")
 
-        wl = data.get("warning_level", "安全")
-        if wl == "安全":
-            st.success("🟢 市场安全 - 可正常交易")
-        elif wl == "警惕":
-            st.warning("🟡 市场警惕 - 注意风险")
+data = load_market_data()
+task_status = get_task_status()
+
+if task_status["status"] == "running":
+    st.info("⏳ 分析进行中，请稍后刷新页面...")
+
+if data:
+    wl = data.get("warning_level", "安全")
+    if wl == "安全":
+        st.success("🟢 市场安全 - 可正常交易")
+    elif wl == "警惕":
+        st.warning("🟡 市场警惕 - 注意风险")
+    else:
+        st.error("🔴 市场风险 - 建议观望")
+elif task_status["status"] != "running":
+    st.info("暂无分析结果，请点击运行")
+
+if data:
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("市场阶段", data["stage"])
+    with col2:
+        if data["risk"] == "低风险":
+            st.markdown("🟢 **低风险**")
+            st.caption("可积极参与")
+        elif data["risk"] == "中风险":
+            st.markdown("🟡 **中风险**")
+            st.caption("建议轻仓")
         else:
-            st.error("🔴 市场风险 - 建议观望")
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("市场阶段", data["stage"])
-        with col2:
-            if data["risk"] == "低风险":
-                st.markdown("🟢 **低风险**")
-                st.caption("可积极参与")
-            elif data["risk"] == "中风险":
-                st.markdown("🟡 **中风险**")
-                st.caption("建议轻仓")
-            else:
-                st.markdown("🔴 **高风险**")
-                st.caption("保持观望")
-        with col3:
-            st.metric("主线强度", data["score"])
+            st.markdown("🔴 **高风险**")
+            st.caption("保持观望")
+    with col3:
+        st.metric("主线强度", data["score"])
 
         st.markdown("---")
         st.markdown("### 1. 市场状态")
@@ -770,10 +834,10 @@ if run_btn:
         else:
             st.info("暂无历史记录，运行 auto_run.py 后会自动记录")
 else:
-    st.info("👆 点击按钮运行分析")
+    st.info("👆 点击上方按钮启动分析，刷新页面查看结果")
     st.markdown("""
     **使用说明**
-    - 点击按钮分析市场
-    - 对比昨日数据
-    - 输出交易简报
+    - 点击「一键运行分析」启动后台分析
+    - 分析完成后刷新页面查看结果
+    - 首次运行请等待片刻
     """)
