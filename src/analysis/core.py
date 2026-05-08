@@ -3,10 +3,29 @@ import os
 import json
 import time
 import requests
+import urllib3
 from datetime import datetime
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def safe_request(url, params=None, max_retries=3):
+    session = requests.Session()
+
+    retry_strategy = Retry(
+        total=5,
+        backoff_factor=2,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -14,100 +33,99 @@ def safe_request(url, params=None, max_retries=3):
             "Chrome/124.0.0.0 Safari/537.36"
         ),
         "Referer": "https://quote.eastmoney.com/",
+        "Origin": "https://quote.eastmoney.com",
         "Accept": "application/json,text/plain,*/*",
+        "Connection": "keep-alive",
     }
 
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, params=params, headers=headers, timeout=15)
-            response.raise_for_status()
-            return response.json()
+    try:
+        response = session.get(
+            url, params=params, headers=headers, timeout=20, verify=False
+        )
 
-        except Exception as e:
-            print(f"请求失败，第 {attempt + 1} 次重试: {e}")
+        response.raise_for_status()
+        return response.json()
 
-            if attempt < max_retries - 1:
-                time.sleep(2)
-            else:
-                print("所有重试失败")
-                return None
+    except Exception as e:
+        print(f"safe_request failed: {e}")
+        return None
 
 
 def fetch_market_summary():
+    url = "https://push2ex.eastmoney.com/getTopicZDFenBu"
+    data = safe_request(url)
+    if data is None:
+        return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
-        url = "https://push2ex.eastmoney.com/getTopicZDFenBu"
-        data = safe_request(url)
-        if not data:
-            return {"上涨家数": "未知", "下跌家数": "未知"}
         up_count = data.get("data", {}).get("up", 0)
         down_count = data.get("data", {}).get("down", 0)
         return {"上涨家数": up_count, "下跌家数": down_count}
-    except:
-        return {"上涨家数": "未知", "下跌家数": "未知"}
+    except Exception as e:
+        return {"status": "error", "message": f"数据解析失败: {str(e)}"}
 
 
 def fetch_limit_count():
+    url = "https://push2.eastmoney.com/api/qt/clist/get"
+    params = {
+        "pn": 1,
+        "pz": 5000,
+        "po": 1,
+        "np": 1,
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+        "fltt": 2,
+        "invt": 2,
+        "fid": "f3",
+        "fs": "m:0+t:80",
+        "fields": "f3",
+    }
+    data = safe_request(url, params=params)
+    if data is None:
+        return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
-        url = "https://push2.eastmoney.com/api/qt/clist/get"
-        params = {
-            "pn": 1,
-            "pz": 5000,
-            "po": 1,
-            "np": 1,
-            "ut": "b2884a393a59ad64002292a3e90d46a5",
-            "fltt": 2,
-            "invt": 2,
-            "fid": "f3",
-            "fs": "m:0+t:80",
-            "fields": "f3",
-        }
-        data = safe_request(url, params=params)
-        if not data:
-            return {"涨停数": 0, "跌停数": 0}
         stocks = data.get("data", {}).get("diff", [])
         up_limit = sum(1 for s in stocks if float(s.get("f3", 0) or 0) >= 9.9)
         down_limit = sum(1 for s in stocks if float(s.get("f3", 0) or 0) <= -9.9)
         return {"涨停数": up_limit, "跌停数": down_limit}
-    except:
-        return {"涨停数": 0, "跌停数": 0}
+    except Exception as e:
+        return {"status": "error", "message": f"数据解析失败: {str(e)}"}
 
 
 def fetch_market_amount():
+    url = "https://push2.eastmoney.com/api/qt/ulistn/get"
+    params = {
+        "pn": 1,
+        "pz": 1,
+        "po": 1,
+        "fltt": 2,
+        "invt": 2,
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+        "fields": "f2",
+        "fs": "m:0+t:80+f:!2",
+    }
+    data = safe_request(url, params=params)
+    if data is None:
+        return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
-        url = "https://push2.eastmoney.com/api/qt/ulistn/get"
-        params = {
-            "pn": 1,
-            "pz": 1,
-            "po": 1,
-            "fltt": 2,
-            "invt": 2,
-            "ut": "b2884a393a59ad64002292a3e90d46a5",
-            "fields": "f2",
-            "fs": "m:0+t:80+f:!2",
-        }
-        data = safe_request(url, params=params)
-        if not data:
-            return {"市场成交额": "未知"}
         amount = data.get("data", {}).get("diff", [{}])[0].get("f2", 0)
         amount_yi = amount / 100000000 if amount else 0
         return {"市场成交额": f"{amount_yi:.0f}亿"}
-    except:
-        return {"市场成交额": "未知"}
+    except Exception as e:
+        return {"status": "error", "message": f"数据解析失败: {str(e)}"}
 
 
 def fetch_north_money():
+    url = "https://push2ex.eastmoney.com/getTopicZTPool"
+    params = {"ut": "b2884a393a59ad64002292a3e90d46a5", "dession": "ALL"}
+    data = safe_request(url, params=params)
+    if data is None:
+        return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
-        url = "https://push2ex.eastmoney.com/getTopicZTPool"
-        params = {"ut": "b2884a393a59ad64002292a3e90d46a5", "dession": "ALL"}
-        data = safe_request(url, params=params)
-        if not data:
-            return {"北向资金净流入": "暂无"}
         north = data.get("data", {}).get("north", {})
         north_in = north.get("amount", 0)
         north_yi = north_in / 100000000 if north_in else 0
         return {"北向资金净流入": f"{north_yi:.1f}亿"}
-    except:
-        return {"北向资金净流入": "暂无"}
+    except Exception as e:
+        return {"status": "error", "message": f"数据解析失败: {str(e)}"}
 
 
 def get_market_judge_data():
@@ -310,11 +328,10 @@ def run_analysis_core():
         "fields": "f12,f14,f2,f3,f62",
     }
 
+    data = safe_request(url, params=params)
+    if data is None or not data.get("data"):
+        return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
-        data = safe_request(url, params=params)
-        if data is None or not data.get("data"):
-            raise Exception("No data returned from API")
-
         sectors = data["data"]["diff"]
         sectors_sorted = sorted(sectors, key=lambda x: x.get("f3", 0), reverse=True)
         top_10 = sectors_sorted[:10]

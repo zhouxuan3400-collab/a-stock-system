@@ -3,10 +3,29 @@ import os
 import csv
 import time
 import requests
+import urllib3
 from datetime import datetime
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def safe_request(url, params=None, max_retries=3):
+    session = requests.Session()
+
+    retry_strategy = Retry(
+        total=5,
+        backoff_factor=2,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -14,23 +33,22 @@ def safe_request(url, params=None, max_retries=3):
             "Chrome/124.0.0.0 Safari/537.36"
         ),
         "Referer": "https://quote.eastmoney.com/",
+        "Origin": "https://quote.eastmoney.com",
         "Accept": "application/json,text/plain,*/*",
+        "Connection": "keep-alive",
     }
 
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, params=params, headers=headers, timeout=15)
-            response.raise_for_status()
-            return response.json()
+    try:
+        response = session.get(
+            url, params=params, headers=headers, timeout=20, verify=False
+        )
 
-        except Exception as e:
-            print(f"请求失败，第 {attempt + 1} 次重试: {e}")
+        response.raise_for_status()
+        return response.json()
 
-            if attempt < max_retries - 1:
-                time.sleep(2)
-            else:
-                print("所有重试失败")
-                return None
+    except Exception as e:
+        print(f"safe_request failed: {e}")
+        return None
 
 
 def fetch_sector_data():
@@ -49,7 +67,7 @@ def fetch_sector_data():
     }
     try:
         data = safe_request(url, params=params)
-        if not data:
+        if data is None:
             print("数据获取失败")
             return [], datetime.now().strftime("%Y-%m-%d")
         sectors = data["data"]["diff"]
