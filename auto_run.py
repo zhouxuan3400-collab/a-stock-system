@@ -2,86 +2,56 @@
 import os
 import sys
 import io
-import csv
-import re
-from datetime import datetime
-import shutil
+import json
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)) or ".")
-os.makedirs("data/raw", exist_ok=True)
-os.makedirs("data/processed", exist_ok=True)
-os.makedirs("reports", exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
-os.system("python src/sector.py > NUL 2>&1")
+from src.data.access import get_latest_result, save_latest_result, append_history
+from src.analysis.core import (
+    get_market_judge_data,
+    analyze_risk_sources,
+    run_analysis_core,
+)
 
-today = datetime.now().strftime("%Y-%m-%d")
-report_file = f"reports/{today}.md"
+if __name__ == "__main__":
+    print("开始自动分析...")
 
-if os.path.exists("data/processed/report.txt"):
-    with open("data/processed/report.txt", "r", encoding="utf-8") as f:
-        content = f.read()
-    with open(report_file, "w", encoding="utf-8") as f:
-        f.write(content)
+    try:
+        result = run_analysis_core()
 
-    lines = content.split("\n")
-    main_sector = ""
-    market_status = ""
-    risk_level = ""
-    strategy = ""
-    position = ""
-    system_score = ""
+        judge_data = get_market_judge_data()
+        result.update(judge_data)
 
-    for line in lines:
-        if "市场状态:" in line:
-            market_status = line.split("市场状态:")[1].strip().split("(")[0].strip()
-        elif "风险等级:" in line:
-            risk_level = line.split("风险等级:")[1].strip()
-        elif "当前策略:" in line:
-            strategy = line.split("当前策略:")[1].strip()
-        elif "建议仓位:" in line:
-            position = line.split("建议仓位:")[1].strip()
-        elif "系统评分:" in line:
-            system_score = line.split("系统评分:")[1].strip().split("/")[0]
+        risk_sources = analyze_risk_sources()
+        result["risk_sources"] = risk_sources
 
-    sectors = []
-    for line in lines:
-        if "板块名称 + 分数:" in line:
-            continue
-        match = re.match(r"\s+(\S+.*):\s+\d+分", line)
-        if match:
-            sectors.append(match.group(1))
-    main_sector = ",".join(sectors[:3]) if sectors else ""
+        save_latest_result(result)
 
-    history_file = "data/processed/market_history.csv"
-    file_exists = os.path.exists(history_file)
-
-    with open(history_file, "a", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(
-                [
-                    "date",
-                    "main_sector",
-                    "market_status",
-                    "risk_level",
-                    "strategy",
-                    "position",
-                    "system_score",
-                ]
-            )
-        writer.writerow(
-            [
-                today,
-                main_sector,
-                market_status,
-                risk_level,
-                strategy,
-                position,
-                system_score,
-            ]
+        append_history(
+            {
+                "date": result.get("date", ""),
+                "market_state": result.get("market_state", ""),
+                "main_sector": ", ".join(result.get("main_sectors", [])[:3]) if result.get("main_sectors") else "无",
+                "risk_level": result.get("risk_level", ""),
+                "strategy": result.get("strategy", ""),
+                "position": result.get("position", ""),
+                "score": result.get("score", 0),
+            }
         )
 
-print("今日市场分析完成")
-print(f"报告已保存至: {report_file}")
+        print(
+            f"分析完成: {result.get('date')} - {result.get('market_state')} - {result.get('risk_level')}"
+        )
+        print(f"策略: {result.get('strategy')} - 仓位: {result.get('position')}")
+        print(
+            f"判定依据: 上涨{result.get('上涨家数', 0)}家, 下跌{result.get('下跌家数', 0)}家, 涨停{result.get('涨停数', 0)}家"
+        )
+        print(f"风险来源: {len(risk_sources)}项")
+        print("结果已保存")
+        print("Auto run completed")
+
+    except Exception as e:
+        print(f"分析失败: {str(e)}")
