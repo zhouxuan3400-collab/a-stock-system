@@ -54,6 +54,7 @@ def safe_request(url, params=None, max_retries=3):
 def fetch_market_summary():
     url = "https://push2ex.eastmoney.com/getTopicZDFenBu"
     data = safe_request(url)
+    print("API RESPONSE [上涨下跌家数]:", data)
     if data is None:
         return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
@@ -79,6 +80,7 @@ def fetch_limit_count():
         "fields": "f3",
     }
     data = safe_request(url, params=params)
+    print("API RESPONSE [涨停跌停数]:", data)
     if data is None:
         return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
@@ -91,23 +93,27 @@ def fetch_limit_count():
 
 
 def fetch_market_amount():
-    url = "https://push2.eastmoney.com/api/qt/ulistn/get"
+    url = "https://push2.eastmoney.com/api/qt/clist/get"
     params = {
         "pn": 1,
-        "pz": 1,
+        "pz": 5000,
         "po": 1,
+        "np": 1,
         "fltt": 2,
         "invt": 2,
         "ut": "b2884a393a59ad64002292a3e90d46a5",
+        "fid": "f2",
+        "fs": "m:0+t:80",
         "fields": "f2",
-        "fs": "m:0+t:80+f:!2",
     }
     data = safe_request(url, params=params)
+    print("API RESPONSE [市场成交额]:", data)
     if data is None:
         return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
-        amount = data.get("data", {}).get("diff", [{}])[0].get("f2", 0)
-        amount_yi = amount / 100000000 if amount else 0
+        stocks = data.get("data", {}).get("diff", [])
+        total_amount = sum(float(s.get("f2", 0) or 0) for s in stocks)
+        amount_yi = total_amount / 100000000 if total_amount else 0
         return {"市场成交额": f"{amount_yi:.0f}亿"}
     except Exception as e:
         return {"status": "error", "message": f"数据解析失败: {str(e)}"}
@@ -117,6 +123,7 @@ def fetch_north_money():
     url = "https://push2ex.eastmoney.com/getTopicZTPool"
     params = {"ut": "b2884a393a59ad64002292a3e90d46a5", "dession": "ALL"}
     data = safe_request(url, params=params)
+    print("API RESPONSE [北向资金]:", data)
     if data is None:
         return {"status": "error", "message": "eastmoney 数据获取失败"}
     try:
