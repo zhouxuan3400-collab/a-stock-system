@@ -44,7 +44,7 @@ def normalize_value(value, default=0):
         return default
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def get_market_boards():
     try:
         df = ak.stock_board_industry_name_em()
@@ -71,7 +71,7 @@ def get_market_boards():
     return get_fallback_boards()
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def get_market_snapshot():
     try:
         df = ak.stock_zh_a_spot_em()
@@ -113,7 +113,7 @@ def get_market_snapshot():
     return get_fallback_market_snapshot()
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def get_north_money():
     NORTH_UPPER = 100000000000
     NORTH_LOWER = -100000000000
@@ -136,7 +136,7 @@ def get_north_money():
     return get_fallback_north_money()
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def get_turnover_change():
     try:
         df = ak.stock_zh_index_daily_em(symbol="000001")
@@ -154,7 +154,7 @@ def get_turnover_change():
     return get_fallback_turnover_change()
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def get_stock_list():
     try:
         df = ak.stock_zh_a_spot_em()
@@ -208,7 +208,7 @@ def get_board_stocks(board_name):
     return get_fallback_board_stocks(board_name)
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def get_risk_sources():
     snapshot = get_market_snapshot()
     north = get_north_money()

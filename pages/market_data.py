@@ -31,9 +31,19 @@ with st.sidebar:
 
 st.title("📊 市场总览")
 
-snapshot = get_market_snapshot()
-north_money = get_north_money()
-turnover_change = get_turnover_change()
+if "market_data" in st.session_state:
+    snapshot = st.session_state.market_data.get("snapshot", {})
+    north_money = st.session_state.market_data.get("north_money", 0)
+    turnover_change = st.session_state.market_data.get("turnover_change", 0)
+else:
+    from data.provider import get_market_snapshot, get_north_money, get_turnover_change
+
+    snapshot = get_market_snapshot()
+    north_money = get_north_money()
+    turnover_change = get_turnover_change()
+
+from data.provider import get_risk_sources
+
 risk_sources = get_risk_sources()
 
 st.markdown("### ⚠️ 风险来源分析")
