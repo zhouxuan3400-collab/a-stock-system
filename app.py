@@ -17,10 +17,15 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+page = st.sidebar.radio("页面导航", ["A股交易面板", "市场扩展数据"], index=0)
+
 with st.sidebar:
     st.markdown("---")
     st.caption(f"当前版本：{get_version()}")
     st.markdown("---")
+
+if page == "市场扩展数据":
+    st.switch_page("pages/market_data.py")
 
 st.title("📈 A股交易面板")
 
@@ -61,41 +66,6 @@ if data and "error" not in data:
         - 中风险：主线模糊，建议30%仓位
         - 高风险：趋势不明，建议0%仓位
         """)
-
-    st.markdown("---")
-
-    st.markdown("### ⚠️ 风险来源分析")
-
-    risk_sources = data.get("risk_sources", [])
-    if risk_sources:
-        for rs in risk_sources:
-            status = rs.get("状态", "未知")
-            if status == "安全":
-                icon = "✅"
-            elif status == "警惕":
-                icon = "⚠️"
-            else:
-                icon = "❌"
-            st.markdown(f"**{icon} {rs.get('项目', '')}**: {rs.get('说明', '')}")
-    else:
-        st.info("暂无风险来源数据")
-
-    up_count = data.get("上涨家数", "未知")
-    down_count = data.get("下跌家数", "未知")
-    limit_up = data.get("涨停数", "未知")
-    limit_down = data.get("跌停数", "未知")
-    amount = data.get("市场成交额", "未知")
-    north = data.get("北向资金净流入", "暂无")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("上涨家数", up_count)
-        st.metric("涨停数", limit_up)
-        st.metric("市场成交额", amount)
-    with col2:
-        st.metric("下跌家数", down_count)
-        st.metric("跌停数", limit_down)
-        st.metric("北向资金", north)
 
     st.markdown("---")
 
@@ -216,4 +186,4 @@ else:
     - 或运行 `python auto_run.py` 本地生成数据
     """)
 
-st.caption("📈 A股交易面板 v7.0")
+st.caption("📈 A股交易面板")
