@@ -17,12 +17,17 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-page = st.sidebar.radio("页面导航", ["A股交易面板", "市场扩展数据"], index=0)
+page = st.sidebar.radio(
+    "页面导航", ["A股交易面板", "主线板块分析", "市场扩展数据"], index=0
+)
 
 with st.sidebar:
     st.markdown("---")
     st.caption(f"当前版本：{get_version()}")
     st.markdown("---")
+
+if page == "主线板块分析":
+    st.switch_page("pages/main_sector.py")
 
 if page == "市场扩展数据":
     st.switch_page("pages/market_data.py")
@@ -66,49 +71,6 @@ if data and "error" not in data:
         - 中风险：主线模糊，建议30%仓位
         - 高风险：趋势不明，建议0%仓位
         """)
-
-    st.markdown("---")
-
-    st.markdown("### 🚀 主线板块")
-
-    main_sectors_detail = data.get("main_sectors_detail", [])
-    if main_sectors_detail:
-        for sector in main_sectors_detail:
-            with st.expander(
-                f"📌 {sector.get('name', '未知')} - {sector.get('涨幅', '0%')}"
-            ):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("强度", f"{sector.get('强度', 0)}/100")
-                    st.metric("涨停数", sector.get("涨停数", 0))
-                    st.metric("生命周期", sector.get("生命周期", "未知"))
-                with col2:
-                    st.metric("涨幅", sector.get("涨幅", "0%"))
-                    st.metric("连板数", sector.get("连板数", 0))
-                    st.metric("可信度", f"{sector.get('可信度', 0)}%")
-
-                st.markdown(f"**龙头股:** {sector.get('龙头股', '暂无')}")
-                st.markdown(f"**成交额:** {sector.get('成交额', '未知')}")
-
-        with st.expander("📖 指标说明：主线板块"):
-            st.markdown("""
-            **生命周期**: 板块当前所处的上涨阶段
-            - 启动期：刚刚启动，后续有望加速
-            - 发酵期：市场认可度提升，趋势形成
-            - 加速期：主升浪，风险收益比最佳
-            - 退潮期：开始回落，注意风险
-            
-            **连板数**: 板块中连续涨停的股票数量，反映短线情绪强度
-            
-            **可信度**: 基于板块强度、成交额、持续性的综合评分
-            """)
-    else:
-        main_sectors = data.get("main_sectors", [])
-        if main_sectors:
-            for i, sector in enumerate(main_sectors[:5], 1):
-                st.markdown(f"**{i}. {sector}**")
-        else:
-            st.info("暂无主线板块")
 
     st.markdown("---")
 
