@@ -126,29 +126,6 @@ def get_market_snapshot():
 
 
 @st.cache_data(ttl=600)
-def get_north_money():
-    NORTH_UPPER = 100000000000
-    NORTH_LOWER = -100000000000
-
-    try:
-        df = ak.stock_hsgt_north_net_flow_in_em()
-        if df is not None and not df.empty:
-            for col in df.columns:
-                if "流入" in col or "净" in col:
-                    net = df.iloc[-1].get(col)
-                    if net is not None:
-                        value = normalize_value(net)
-                        if value != value:
-                            return get_fallback_north_money()
-                        if value > NORTH_UPPER or value < NORTH_LOWER:
-                            return get_fallback_north_money()
-                        return value
-    except Exception as e:
-        print(f"get_north_money failed: {e}")
-    return get_fallback_north_money()
-
-
-@st.cache_data(ttl=600)
 def get_turnover_change():
     try:
         df = ak.stock_zh_index_daily_em(symbol="000001")
@@ -223,7 +200,6 @@ def get_board_stocks(board_name):
 @st.cache_data(ttl=600)
 def get_risk_sources():
     snapshot = get_market_snapshot()
-    north = get_north_money()
     turnover_change = get_turnover_change()
 
     risk_sources = []
@@ -292,32 +268,6 @@ def get_risk_sources():
                 "项目": "成交额变化",
                 "状态": "安全",
                 "说明": f"成交额{amount_yi:.0f}亿，活跃度良好",
-            }
-        )
-
-    north_yi = north / 100000000 if north else 0
-    if north_yi < 0:
-        risk_sources.append(
-            {
-                "项目": "北向资金",
-                "状态": "危险",
-                "说明": f"净流出{-north_yi:.1f}亿，外资撤离",
-            }
-        )
-    elif north_yi < 10:
-        risk_sources.append(
-            {
-                "项目": "北向资金",
-                "状态": "警惕",
-                "说明": f"净流入{north_yi:.1f}亿，态度谨慎",
-            }
-        )
-    else:
-        risk_sources.append(
-            {
-                "项目": "北向资金",
-                "状态": "安全",
-                "说明": f"净流入{north_yi:.1f}亿，外资看好",
             }
         )
 
