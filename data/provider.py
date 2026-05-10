@@ -21,14 +21,25 @@ def normalize_value(value, default=0):
     if isinstance(value, float):
         if value != value:
             return default
+        if abs(value) > 1e15:
+            return float("nan")
         return value
     if isinstance(value, str):
+        value_str = value.strip()
+        if "e" in value_str.lower() or "E" in value_str:
+            return float("nan")
         try:
-            return float(value.replace(",", "").strip())
+            v = float(value_str.replace(",", ""))
+            if abs(v) > 1e15:
+                return float("nan")
+            return v
         except:
             return default
     try:
-        return float(value)
+        v = float(value)
+        if abs(v) > 1e15:
+            return float("nan")
+        return v
     except:
         return default
 
@@ -104,6 +115,9 @@ def get_market_snapshot():
 
 @st.cache_data(ttl=300)
 def get_north_money():
+    NORTH_UPPER = 100000000000
+    NORTH_LOWER = -100000000000
+
     try:
         df = ak.stock_hsgt_north_net_flow_in_em()
         if df is not None and not df.empty:
@@ -111,7 +125,12 @@ def get_north_money():
                 if "流入" in col or "净" in col:
                     net = df.iloc[-1].get(col)
                     if net is not None:
-                        return normalize_value(net)
+                        value = normalize_value(net)
+                        if value != value:
+                            return get_fallback_north_money()
+                        if value > NORTH_UPPER or value < NORTH_LOWER:
+                            return get_fallback_north_money()
+                        return value
     except Exception as e:
         print(f"get_north_money failed: {e}")
     return get_fallback_north_money()
