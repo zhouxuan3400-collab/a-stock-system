@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+streamlit.log
+.nul
+cache/
+limiter/
+*.egg-info/
+.eggs/
+data/*.json
+data/*.csv

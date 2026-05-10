@@ -2,6 +2,7 @@
 import streamlit as st
 
 from src.data.access import get_latest_result, get_history
+from src.version import get_version
 
 
 st.set_page_config(page_title="A股交易面板", page_icon="📈")
@@ -15,6 +16,11 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+with st.sidebar:
+    st.markdown("---")
+    st.caption(f"当前版本：{get_version()}")
+    st.markdown("---")
 
 st.title("📈 A股交易面板")
 

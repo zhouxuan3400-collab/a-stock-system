@@ -15,6 +15,7 @@ from src.analysis.core import (
     analyze_risk_sources,
     run_analysis_core,
 )
+from src.version import update_version
 
 if __name__ == "__main__":
     print("开始自动分析...")
@@ -34,7 +35,9 @@ if __name__ == "__main__":
             {
                 "date": result.get("date", ""),
                 "market_state": result.get("market_state", ""),
-                "main_sector": ", ".join(result.get("main_sectors", [])[:3]) if result.get("main_sectors") else "无",
+                "main_sector": ", ".join(result.get("main_sectors", [])[:3])
+                if result.get("main_sectors")
+                else "无",
                 "risk_level": result.get("risk_level", ""),
                 "strategy": result.get("strategy", ""),
                 "position": result.get("position", ""),
@@ -49,8 +52,17 @@ if __name__ == "__main__":
         print(
             f"判定依据: 上涨{result.get('上涨家数', 0)}家, 下跌{result.get('下跌家数', 0)}家, 涨停{result.get('涨停数', 0)}家"
         )
-        print(f"风险来源: {len(risk_sources)}项")
+print(f"风险来源: {len(risk_sources)}项")
         print("结果已保存")
+        
+        new_version = update_version()
+        print(f"版本已更新: {new_version}")
+        
+        import sys
+        if len(sys.argv) > 1 and sys.argv[1] == "--release":
+            from release import run_release
+            run_release()
+        
         print("Auto run completed")
 
     except Exception as e:
