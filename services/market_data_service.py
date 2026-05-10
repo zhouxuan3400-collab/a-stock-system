@@ -82,18 +82,58 @@ def get_market_snapshot_fallback():
     }
 
 
+def normalize_money_value(value):
+    if value is None:
+        return 0
+    if isinstance(value, float):
+        if value != value:
+            return 0
+        return value
+    if isinstance(value, str):
+        value = value.replace("亿", "").replace("万", "").replace(",", "").strip()
+        try:
+            return float(value)
+        except:
+            return 0
+    try:
+        return float(value)
+    except:
+        return 0
+
+
+def format_money(value):
+    if value is None:
+        return "0亿"
+    if isinstance(value, float):
+        if value != value:
+            return "0亿"
+        return f"{value:.2f}亿"
+    if isinstance(value, str):
+        try:
+            v = float(value)
+            return f"{v:.2f}亿"
+        except:
+            return "0亿"
+    try:
+        return f"{float(value):.2f}亿"
+    except:
+        return "0亿"
+
+
 def get_north_money():
     try:
         df = ak.stock_hsgt_north_net_flow_in_em()
         if df is not None and not df.empty:
-            net = (
-                df.iloc[-1].get("当日净流入")
-                or df.iloc[-1].get("北向净流入")
-                or df.iloc[-1].get("净流入")
-                or 0
-            )
+            row = df.iloc[-1]
+            net = None
+            for col in df.columns:
+                col_lower = col.lower()
+                if "流入" in col or "净" in col or "net" in col_lower:
+                    net = row.get(col)
+                    if net is not None:
+                        break
             if net is not None:
-                return float(net)
+                return normalize_money_value(net)
     except Exception as e:
         print(f"north_money failed: {e}")
 
@@ -104,9 +144,11 @@ def get_north_money_fallback():
     try:
         df = ak.stock_hsgt_hist_em(symbol="北向资金")
         if df is not None and not df.empty:
-            net = df.iloc[-1].get("当日成交净买额", 0)
-            if net is not None:
-                return float(net)
+            for col in df.columns:
+                if "净买" in col or "净流入" in col:
+                    net = df.iloc[-1].get(col)
+                    if net is not None:
+                        return normalize_money_value(net)
     except:
         pass
 
