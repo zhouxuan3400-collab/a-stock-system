@@ -3,3 +3,4 @@ requests
 fastapi
 uvicorn
 pydantic
+akshare>=1.12.0
