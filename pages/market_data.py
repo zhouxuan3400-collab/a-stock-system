@@ -2,7 +2,7 @@
 import streamlit as st
 
 from src.version import get_version
-from services.market_data_service import (
+from data.provider import (
     get_market_snapshot,
     get_north_money,
     get_turnover_change,

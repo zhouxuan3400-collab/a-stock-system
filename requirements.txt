@@ -1,6 +1,8 @@
 streamlit
+akshare>=1.12.0
+pandas
+numpy
 requests
 fastapi
 uvicorn
 pydantic
-akshare>=1.12.0
