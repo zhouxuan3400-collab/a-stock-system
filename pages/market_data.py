@@ -76,13 +76,13 @@ turnover_str = f"{turnover_change:+.1f}%" if turnover_change else "数据获取�
 
 col1, col2 = st.columns(2)
 with col1:
-    st.metric("上涨家数", f"{up_count:,}" if up_count else "数据获取中")
-    st.metric("涨停数", f"{limit_up}" if limit_up else "数据获取中")
-    st.metric("市场成交额", f"{amount_yi:.0f}亿" if amount_yi else "数据获取中")
+    st.metric("上涨家数", f"{up_count:,}" if up_count else "0")
+    st.metric("涨停数", f"{limit_up}" if limit_up else "0")
+    st.metric("市场成交额", f"{amount_yi:.0f}亿" if amount_yi else "0亿")
     st.metric("成交额变化", turnover_str)
 with col2:
-    st.metric("下跌家数", f"{down_count:,}" if down_count else "数据获取中")
-    st.metric("跌停数", f"{limit_down}" if limit_down else "数据获取中")
+    st.metric("下跌家数", f"{down_count:,}" if down_count else "0")
+    st.metric("跌停数", f"{limit_down}" if limit_down else "0")
 
 st.markdown("---")
 

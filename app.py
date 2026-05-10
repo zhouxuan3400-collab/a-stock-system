@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 import streamlit as st
 from src.version import get_version
+from data.bootstrap import init_registry
+
+init_registry()
+
 from data.provider import get_market_boards, get_market_snapshot, get_turnover_change
 
 st.set_page_config(page_title="A股系统 DEV", layout="wide")
