@@ -5,14 +5,26 @@ import pandas as pd
 import random
 from datetime import datetime, timedelta
 
-from data.fallback_api import (
-    get_fallback_boards,
-    get_fallback_market_snapshot,
-    get_fallback_north_money,
-    get_fallback_turnover_change,
-    get_fallback_stock_list,
-    get_fallback_board_stocks,
-)
+
+def is_market_open():
+    """
+    判断是否在交易时间
+    A股：9:30-11:30 / 13:00-15:00
+    """
+    now = datetime.now()
+    hour = now.hour
+    minute = now.minute
+
+    time_value = hour * 60 + minute
+
+    morning_start = 9 * 60 + 30
+    morning_end = 11 * 60 + 30
+    afternoon_start = 13 * 60
+    afternoon_end = 15 * 60
+
+    return (morning_start <= time_value <= morning_end) or (
+        afternoon_start <= time_value <= afternoon_end
+    )
 
 
 def normalize_value(value, default=0):
@@ -110,7 +122,7 @@ def get_market_snapshot():
             }
     except Exception as e:
         print(f"get_market_snapshot failed: {e}")
-    return get_fallback_market_snapshot()
+    return None
 
 
 @st.cache_data(ttl=600)
