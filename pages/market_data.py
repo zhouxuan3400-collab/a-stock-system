@@ -4,14 +4,12 @@ import streamlit as st
 from src.version import get_version
 from data.provider import (
     get_market_snapshot,
-    get_north_money,
     get_turnover_change,
     get_risk_sources,
-    format_money,
 )
 
 
-st.set_page_config(page_title="市场扩展数据", page_icon="📊")
+st.set_page_config(page_title="市场总览", page_icon="📊")
 
 st.markdown(
     """
@@ -33,16 +31,12 @@ st.title("📊 市场总览")
 
 if "market_data" in st.session_state:
     snapshot = st.session_state.market_data.get("snapshot", {})
-    north_money = st.session_state.market_data.get("north_money", 0)
     turnover_change = st.session_state.market_data.get("turnover_change", 0)
 else:
-    from data.provider import get_market_snapshot, get_north_money, get_turnover_change
+    from data.provider import get_market_snapshot, get_turnover_change
 
     snapshot = get_market_snapshot()
-    north_money = get_north_money()
     turnover_change = get_turnover_change()
-
-from data.provider import get_risk_sources
 
 risk_sources = get_risk_sources()
 
@@ -74,8 +68,6 @@ limit_down = snapshot.get("limit_down", 0)
 total_amount = snapshot.get("total_amount", 0)
 amount_yi = total_amount / 100000000 if total_amount else 0
 
-north_str = format_money(north_money)
-
 turnover_str = f"{turnover_change:+.1f}%" if turnover_change else "数据获取中"
 
 col1, col2 = st.columns(2)
@@ -87,7 +79,6 @@ with col1:
 with col2:
     st.metric("下跌家数", f"{down_count:,}" if down_count else "数据获取中")
     st.metric("跌停数", f"{limit_down}" if limit_down else "数据获取中")
-    st.metric("北向资金", north_str if north_money else "数据获取中")
 
 st.markdown("---")
 
@@ -95,4 +86,4 @@ from datetime import datetime
 
 st.caption(f"📅 更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
-st.caption("📊 市场扩展数据")
+st.caption("📊 市场总览")
