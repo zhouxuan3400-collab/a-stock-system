@@ -6,6 +6,7 @@ from data.provider import (
     get_market_snapshot,
     get_turnover_change,
     get_risk_sources,
+    safe_snapshot,
 )
 
 
@@ -30,13 +31,16 @@ with st.sidebar:
 st.title("📊 市场总览")
 
 if "market_data" in st.session_state:
-    snapshot = st.session_state.market_data.get("snapshot", {})
+    raw_snapshot = st.session_state.market_data.get("snapshot", None)
     turnover_change = st.session_state.market_data.get("turnover_change", 0)
 else:
-    from data.provider import get_market_snapshot, get_turnover_change
+    from data.provider import get_market_snapshot, get_turnover_change, safe_snapshot
 
-    snapshot = get_market_snapshot()
+    raw_snapshot = get_market_snapshot()
     turnover_change = get_turnover_change()
+    safe_snapshot = safe_snapshot
+
+snapshot = safe_snapshot(raw_snapshot)
 
 risk_sources = get_risk_sources()
 
