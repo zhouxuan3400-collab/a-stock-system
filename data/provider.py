@@ -194,12 +194,27 @@ def get_board_stocks(board_name):
             return stocks
     except Exception as e:
         print(f"get_board_stocks failed for {board_name}: {e}")
-    return [] # board_name)
+    return []  # board_name)
+
+
+def safe_snapshot(snapshot):
+    """强制统一 snapshot 类型为 dict"""
+    if snapshot is None:
+        return {}
+    if isinstance(snapshot, dict):
+        return snapshot
+    if isinstance(snapshot, list):
+        return snapshot[-1] if len(snapshot) > 0 else {}
+    try:
+        return snapshot.to_dict()
+    except:
+        return {}
 
 
 @st.cache_data(ttl=600)
 def get_risk_sources():
-    snapshot = get_market_snapshot()
+    raw_snapshot = get_market_snapshot()
+    snapshot = safe_snapshot(raw_snapshot)
     turnover_change = get_turnover_change()
 
     risk_sources = []
