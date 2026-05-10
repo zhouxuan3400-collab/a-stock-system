@@ -52,17 +52,17 @@ if __name__ == "__main__":
         print(
             f"判定依据: 上涨{result.get('上涨家数', 0)}家, 下跌{result.get('下跌家数', 0)}家, 涨停{result.get('涨停数', 0)}家"
         )
-print(f"风险来源: {len(risk_sources)}项")
+        print(f"风险来源: {len(risk_sources)}项")
         print("结果已保存")
-        
+
         new_version = update_version()
         print(f"版本已更新: {new_version}")
-        
-        import sys
+
         if len(sys.argv) > 1 and sys.argv[1] == "--release":
             from release import run_release
+
             run_release()
-        
+
         print("Auto run completed")
 
     except Exception as e:
