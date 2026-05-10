@@ -18,7 +18,7 @@ st.markdown(
 )
 
 page = st.sidebar.radio(
-    "页面导航", ["A股交易面板", "主线板块分析", "市场扩展数据"], index=0
+    "页面导航", ["A股交易面板", "主线板块分析", "市场扩展数据", "强势选股系统"], index=0
 )
 
 with st.sidebar:
@@ -27,10 +27,13 @@ with st.sidebar:
     st.markdown("---")
 
 if page == "主线板块分析":
-    st.switch_page("pages/main_sector.py")
+    st.switch_page("main_sector")
 
 if page == "市场扩展数据":
-    st.switch_page("pages/market_data.py")
+    st.switch_page("market_data")
+
+if page == "强势选股系统":
+    st.switch_page("stock_picker")
 
 st.title("📈 A股交易面板")
 
