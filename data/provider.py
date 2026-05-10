@@ -80,7 +80,7 @@ def get_market_boards():
                 return boards
     except Exception as e:
         print(f"get_market_boards failed: {e}")
-    return get_fallback_boards()
+    return None
 
 
 @st.cache_data(ttl=600)
@@ -140,7 +140,7 @@ def get_turnover_change():
                 return (amount_today - amount_yesterday) / amount_yesterday * 100
     except Exception as e:
         print(f"get_turnover_change failed: {e}")
-    return get_fallback_turnover_change()
+    return None
 
 
 @st.cache_data(ttl=600)
@@ -171,7 +171,7 @@ def get_stock_list():
             return stocks
     except Exception as e:
         print(f"get_stock_list failed: {e}")
-    return get_fallback_stock_list()
+    return None
 
 
 def get_board_stocks(board_name):
@@ -194,7 +194,7 @@ def get_board_stocks(board_name):
             return stocks
     except Exception as e:
         print(f"get_board_stocks failed for {board_name}: {e}")
-    return get_fallback_board_stocks(board_name)
+    return [] # board_name)
 
 
 @st.cache_data(ttl=600)
